@@ -9,9 +9,9 @@ entity on the internet.
 
 ### How to use
 
-# clone the code from github
-# run "start-with-python"
+1. clone the code from github
+2. run "start-with-python"
   * a browser window will open
-# select your facebook archive zip file
+3. select your facebook archive zip file
   * it will be loaded into the browser, but not leave your computer
-# use the controls in the browser window to extract data
+4. use the controls in the browser window to extract data
