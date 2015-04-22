@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Explore the Data from your Facebook Archive</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="bootstrap.min.css">
+  <link rel="stylesheet" href="bootstrap-theme.min.css">
+</head>
+<body>
+  <div class="main container">
+
+
+    <div class="row">
+      <div class="col-md-12">
+        <h1>Explore your Facebook Archive</h1>
+
+        <h3>1 - Download facebook archive</h3>
+        <p>Before using this you have to <a href="https://www.facebook.com/settings">Download a copy of your facebook data</a>.
+        You will recieve an e-mail and be able to download a zip-file. Then you can use this
+        page to explore the data further.</p>
+
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <h3>2 - Load full facebook Archive</h3>
+        <p>Your browser will process the zip file</p>
+        <input type="file" id="file" name="file" multiple />
+        <div id="dropbox" style="border: 3px dashed blue; width:200px; height: 50px; padding: 10px; ">or drop zip file here</div><br />
+
+        <div id="error_block" style="visibility:hidden;">
+          You will need a recent browser capable of FileReader and ArrayBuffer to use this page :(
+          This one does not seem to work. Could you maybe try another browser?
+        </div>
+      </div>
+
+
+      <div class="col-md-6">
+        <h3>3 - Save the Data</h3>
+        <a href="#" id='save'>Save Locally</a> 
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-12">
+        <div id="result_block">
+          <h3>2 - Select the Data </h3>
+          <div id="result">--- nothing loaded yet ---</div>
+        </div>
+      </div>
+    </div>
+
+    <script src="jquery.min.js"></script>
+    <script src="jszip.min.js"></script>
+    <script src="moment.min.js"></script>
+    <script src="filesaver.min.js"></script>
+    <script src="nlp.min.js"></script> <!-- https://github.com/spencermountain/nlp_compromise/ -->
+    <script type="text/javascript">
+      function anonymize( text, user_name ) {
+        text = text.replace( new RegExp(user_name, 'g'), "user");
+        text = text.replace( /her/g, "their" );
+        text = text.replace( /his/g, "their" );
+        return text;
+      }
+      function save_to_data_link(a) {
+        console.log("will save");
+        var $selected = $('#result input:checked').parent().clone();
+        $('input', $selected).remove();
+        var text = "<html>\n";
+        $selected.each(function(){
+            var t = $(this).html() + "\n";
+            text += t.replace(/<p><\/p>/g, "");
+            });
+        text += "</html>\n";
+        var datestring = moment().format("YYYY-MM-DD");
+        a.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+        a.setAttribute('download', 'facebook-data-anonymized-' + datestring + '.html');
+      }
+          function file_handler_for(theFile) {
+              console.log("setting up onload handler");
+              return function(e) {
+                console.log("onload handler has been called");
+                $fileContent = $("<div>");
+                try {
+                  var zip = new JSZip(e.target.result);
+                  var text = zip.files['html/wall.htm'].asText();
+                  var user_name = $('h1', $( text )).text();
+                  text = anonymize( text, user_name ); 
+                  $content = $('h1 + div', $( text ));  // pick the div after the h1 
+                  $content.contents() 
+                    .filter(function() { return this.nodeType == 3; })
+                    .wrap("<div class='intro'>");
+                  $('div.meta', $content).each(function(i){
+                    var datastring = $(this).text(); // Wednesday, March 18, 2015 at 8:56pm EDT
+                    if ( $(this).next('.intro').text().match(/are now friends|was invited to|likes/) ) {
+                      $(this).nextUntil('div.meta').addBack().wrapAll("<div class='delete'>");
+                    } else if (datastring.indexOf("2015") > -1) {
+                      $(this).html( moment(datastring, "LLLL").format() );  // 2015-03-18T08:56:00-04:00
+                      $(this).nextUntil('div.meta').addBack().wrapAll("<div>");
+                      $(this).parent().addClass('story');
+                      $(this).parent().prepend("<input type='checkbox' checked='checked' id='story" + i + "'>")
+                    } else {
+                      $(this).nextUntil('div.meta').addBack().wrapAll("<div class='delete'>");
+                    }
+                  });
+                  $('.delete', $content).remove();
+                  $fileContent.append( $content );
+                  // that, or a good ol' for(var entryName in zip.files)
+                  // $.each(zip.files, function (index, entry) {
+                  // $fileContent.append(index + "<br>");
+                  // the content is here : zipEntry.asText()
+                  // });
+                  // end of the magic !
+
+                } catch(e) {
+                  console.log("there was an error " + e);
+                  $fileContent = $("<div>", {
+                      "class" : "alert alert-danger",
+                      text : "Error reading " + theFile.name + " : " + e.message
+                      });
+                }
+                console.log("we have a result" + $fileContent);
+                $("#result").append($fileContent);
+                $("#result_block").show();
+              }
+          }
+      function handle_files(files) {
+        console.log("There is a new file coming in...");
+        // remove content
+        $("#result").html("");
+
+        if( files.length != 1) {
+          $result.html("Can only work with one zip-file at a time, sorry!");
+        } else {
+          f = files[0];
+
+          var reader = new FileReader();
+
+          // Closure to capture the file information.
+          reader.onload = file_handler_for(f);
+
+          // end reader.onload = (function(theFile) {
+
+          // read the file !
+          // readAsArrayBuffer and readAsBinaryString both produce valid content for JSZip.
+          console.log("will start reading");
+          reader.readAsArrayBuffer(f);
+          // reader.readAsBinaryString(f);
+        }  // end for f
+      } // end function
+
+
+
+      $(document).ready(function () {
+          console.log("ready");
+          var isFileSaverSupported = 0;
+          try {
+          var isFileSaverSupported = !!new Blob;
+          } catch (e) {}
+          if (isFileSaverSupported && window.FileReader && window.ArrayBuffer && window.FileReader) {
+          $("#error_block").hide();
+          $("#file").on("change", function(evt) {
+            var files = evt.target.files;
+            handle_files( files );
+            });
+          $('#save').on('click', function(evt) {
+            save_to_data_link(this);
+            });
+          var obj = $('#dropbox');
+          obj.on('dragenter', function (e) 
+            {
+            e.stopPropagation();
+            e.preventDefault();
+            $(this).css('border', '2px solid #0B85A1');
+            });
+          obj.on('dragover', function (e) 
+              {
+              e.stopPropagation();
+              e.preventDefault();
+              });
+          obj.on('drop', function (e) 
+              {
+              $(this).css('border', '2px dotted #0B85A1');
+              e.preventDefault();
+              var files = e.originalEvent.dataTransfer.files;
+              handle_files(files,obj);
+              });
+          $(document).on('dragenter', function (e) 
+              {
+              e.stopPropagation();
+              e.preventDefault();
+              });
+          $(document).on('dragover', function (e) 
+              {
+              e.stopPropagation();
+              e.preventDefault();
+              obj.css('border', '2px dotted #0B85A1');
+              });
+          $(document).on('drop', function (e) 
+              {
+              e.stopPropagation();
+              e.preventDefault();
+              });
+          } // if all this works
+      }); // end on 'ready' function
+      </script>
+    </body>
+      </html>
