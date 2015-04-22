@@ -1,5 +1,0 @@
-#!/bin/sh
-
-echo "starting webserver and opening browser"
-python -m SimpleHTTPServer 8000 & python -m webbrowser -t http://localhost:8000
-
